@@ -45,16 +45,18 @@ public class SmashUp extends Activity {
 	int topMargin = 50;
 	int margin = 10;
 	int numPlayers = 2;
-	ArrayList<ArrayList<Minions>> playedMinions;
-	ArrayList<ArrayList<ImageView>> minionViews;
+	int playerWidth = 150;
+	int listMargin = 150;
+	ArrayList<ArrayList<ArrayList<Minions>>> playedMinions;
+	ArrayList<ArrayList<ArrayList<ImageView>>> minionViews;
 	ArrayList<Base> bases;
 	ArrayList<Player> players;
 	ArrayList<TextView> baseViews;
 	ArrayList<TextView> playerViews;
+	ArrayList<ImageView> listViews;
 
     @Override
-    public void onCreate(Bundle savedInstanceState)
-    {
+    public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.main);
 		al = (AbsoluteLayout) findViewById(R.id.layout1);
@@ -67,16 +69,23 @@ public class SmashUp extends Activity {
 	public void setupBoard() {
 		cardHeight = (height - topMargin - margin) / (numPlayers + 1) - margin;
 		cardWidth = (int) (cardHeight / 1.5);
-		playedMinions = new ArrayList<ArrayList<Minions>>();
-		minionViews = new ArrayList<ArrayList<ImageView>>();
+		playedMinions = new ArrayList<ArrayList<ArrayList<Minions>>>();
+		minionViews = new ArrayList<ArrayList<ArrayList<ImageView>>>();
 		bases = new ArrayList<Base>();
 		players = new ArrayList<Player>();
 		baseViews = new ArrayList<TextView>();
 		playerViews = new ArrayList<TextView>();
+		listViews = new ArrayList<ImageView>();
 		Collections.shuffle(Base.allBases);
 		for (int i=0;i<numPlayers+1;i++) {
-			playedMinions.add(new ArrayList<Minions>());
-			minionViews.add(new ArrayList<ImageView>());
+			ArrayList<ArrayList<Minions>> pm = new ArrayList<ArrayList<Minions>>();
+			ArrayList<ArrayList<ImageView>> mv = new ArrayList<ArrayList<ImageView>>();
+			for (int j=0;j<numPlayers;j++) {
+				pm.add(new ArrayList<Minions>());
+				mv.add(new ArrayList<ImageView>());
+			}
+			playedMinions.add(pm);
+			minionViews.add(mv);
 			Base b = Base.allBases.get(i);
 			bases.add(b);
 			TextView text = new TextView(this);
@@ -90,32 +99,45 @@ public class SmashUp extends Activity {
 			Collections.shuffle(p.deck);
 			p.drawCards(5);
 			TextView text = new TextView(this);
-			text.setLayoutParams(new AbsoluteLayout.LayoutParams(cardWidth*2,topMargin,leftMargin+margin+(cardWidth*2+margin)*i,0));
+			text.setLayoutParams(new AbsoluteLayout.LayoutParams(playerWidth,topMargin,leftMargin+margin+(playerWidth+margin)*i,0));
 			text.setText(p.name+"\n"+p.vp+" VP (hand:"+p.hand.size()+")");
 			al.addView(text);
 			playerViews.add(text);
+			players.add(p);
 		}
 		playMinion(new Minions(0,Minions.Type.ZAPBOT),1);
-		playMinion(new Minions(0,Minions.Type.ZAPBOT),1);
-		playMinion(new Minions(0,Minions.Type.ZAPBOT),1);
-		playMinion(new Minions(0,Minions.Type.ZAPBOT),1);
-		playMinion(new Minions(1,Minions.Type.ZAPBOT),1);
-		playMinion(new Minions(1,Minions.Type.ZAPBOT),1);
-		playMinion(new Minions(1,Minions.Type.ZAPBOT),1);
-		playMinion(new Minions(1,Minions.Type.ZAPBOT),1);
-		playMinion(new Minions(1,Minions.Type.ZAPBOT),1);
-		playMinion(new Minions(0,Minions.Type.ZAPBOT),0);
+//		playMinion(new Minions(0,Minions.Type.ZAPBOT),1);
+//		playMinion(new Minions(0,Minions.Type.ZAPBOT),1);
+//		playMinion(new Minions(0,Minions.Type.ZAPBOT),1);
+//		playMinion(new Minions(1,Minions.Type.ZAPBOT),1);
+//		playMinion(new Minions(1,Minions.Type.ZAPBOT),1);
+//		playMinion(new Minions(1,Minions.Type.ZAPBOT),1);
+//		playMinion(new Minions(1,Minions.Type.ZAPBOT),1);
+//		playMinion(new Minions(1,Minions.Type.ZAPBOT),1);
+//		playMinion(new Minions(0,Minions.Type.ZAPBOT),0);
 	}
 
 	public void playMinion(Minions m, int target) {
-		playedMinions.get(target).add(m);
+		final int i = target;
+		final int j = m.playerID;
+		if (playedMinions.get(i).get(j).size() > 0)
+			minionViews.get(i).get(j).get(playedMinions.get(i).get(j).size()-1).setClickable(false);
+		playedMinions.get(target).get(m.playerID).add(m);
 		ImageView iv = new ImageView(this);
 		iv.setScaleType(ImageView.ScaleType.FIT_XY);
 		al.addView(iv);
-		minionViews.get(target).add(iv);
+		minionViews.get(target).get(m.playerID).add(iv);
 		Resources res = getResources();
 		int vid = res.getIdentifier(m.name, "drawable", getApplicationContext().getPackageName());
 		iv.setImageResource(vid);
+		iv.setOnClickListener(new OnClickListener(){
+			public void onClick(View arg0) {
+				toggleDisplay();
+				ArrayList<Card> list = new ArrayList<Card>();
+				list.addAll(playedMinions.get(i).get(j));
+				displayList(list);
+			}
+		});
 	}
 
 	public int getStatusBarHeight() { 
@@ -132,19 +154,61 @@ public class SmashUp extends Activity {
 		for (int i=0; i<numPlayers+1; i++) {
 			int x = leftMargin + margin;
 			for (int j=0; j<numPlayers; j++) {
-				boolean skip = true;
-				for (int k=0; k<playedMinions.get(i).size();k++) {
-					Minions m= playedMinions.get(i).get(k);
-					if (m.playerID == j) {
-						minionViews.get(i).get(k).setLayoutParams(new AbsoluteLayout.LayoutParams(cardWidth,cardHeight,x,y));
+				if (playedMinions.get(i).get(j).size() != 0) {
+					for (ImageView m : minionViews.get(i).get(j)) {
+						m.setLayoutParams(new AbsoluteLayout.LayoutParams(cardWidth,cardHeight,x,y));
 						x += margin;
-						skip = false;
 					}
-				}
-				if (!skip)
 					x += cardWidth;
+				}
 			}
 			y += cardHeight + margin;
+		}
+	}
+
+	public void toggleDisplay() {
+		if (listViews.size()==0) {
+			for (int i=0;i<numPlayers+1;i++) {
+				for (int j=0;j<numPlayers;j++) {
+					for (ImageView m : minionViews.get(i).get(j))
+						m.setVisibility(View.GONE);
+				}
+			}
+			for (TextView t : baseViews)
+				t.setVisibility(View.GONE);
+			for (TextView t : playerViews)
+				t.setVisibility(View.GONE);
+		} else {
+			for (ImageView i : listViews)
+				i.setVisibility(View.GONE);
+			listViews.clear();
+			for (int i=0;i<numPlayers+1;i++) {
+				for (int j=0;j<numPlayers;j++) {
+					for (ImageView m : minionViews.get(i).get(j))
+						m.setVisibility(View.VISIBLE);
+				}
+			}
+			for (TextView t : baseViews)
+				t.setVisibility(View.VISIBLE);
+			for (TextView t : playerViews)
+				t.setVisibility(View.VISIBLE);
+		}
+	}
+
+	public void displayList(ArrayList<Card> l) {
+		int h = height - listMargin*2 - margin * 2;
+		int w = (int) (h / 1.5);
+		int x = margin;
+		for (Card m : l) {
+			ImageView iv = new ImageView(this);
+			iv.setScaleType(ImageView.ScaleType.FIT_XY);
+			al.addView(iv);
+			listViews.add(iv);
+			Resources res = getResources();
+			int vid = res.getIdentifier(m.getName(), "drawable", getApplicationContext().getPackageName());
+			iv.setImageResource(vid);
+			iv.setLayoutParams(new AbsoluteLayout.LayoutParams(w,h,x,listMargin + margin));
+			x += w + margin;
 		}
 	}
 
@@ -174,19 +238,17 @@ public class SmashUp extends Activity {
 	}
 
 	public void onBackPressed() {
-//		if (radioIcons.getVisibility()==View.VISIBLE) {
-//			radioIcons.setVisibility(View.GONE);
-//			for (View v:previousIcons) v.setVisibility(View.VISIBLE);
-//			for (View v:neighborCardViews) v.setVisibility(View.GONE);
-//			for (View v:neighborDualResourceIcons) v.setVisibility(View.GONE);
-//			if (cardDescriptionText.getVisibility()==View.VISIBLE||messageText.getVisibility()==View.VISIBLE) {
-//				for (View v:resourceIcons) v.setVisibility(View.GONE);
-//				for (View v:dualResourceIcons) v.setVisibility(View.GONE);
-//			} else displayResources(p);
-//		} else if (wonderDescription.getVisibility()==View.VISIBLE) {
-//			for (View v:previousIcons) v.setVisibility(View.VISIBLE);
-//			wonderDescription.setVisibility(View.GONE);
-//		}
+		if (listViews.size() != 0)
+			toggleDisplay();
+	}
+
+	public boolean onKeyDown(int keycode, KeyEvent event ) {
+		 if(keycode == KeyEvent.KEYCODE_MENU){
+			if (listViews.size() != 0) {
+				return true;
+			}
+		 }
+		 return super.onKeyDown(keycode,event);  
 	}
 
 	public boolean onCreateOptionsMenu(Menu menu) {
@@ -198,6 +260,8 @@ public class SmashUp extends Activity {
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
 		case R.id.handmenu:
+			toggleDisplay();
+			displayList(players.get(0).hand);
 			return true;
 		case R.id.abilitymenu:
 			return true;

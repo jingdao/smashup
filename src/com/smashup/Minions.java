@@ -57,5 +57,8 @@ public class Minions implements Card{
 		name = type.name().toLowerCase();
 	}
 
+	public String getName() {
+		return name;
+	}
 
 }

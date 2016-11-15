@@ -24,4 +24,9 @@ public class Actions implements Card {
 		this.type = type;
 		name = type.name().toLowerCase();
 	}
+
+	public String getName() {
+		return name;
+	}
+
 }
