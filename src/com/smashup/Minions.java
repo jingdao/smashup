@@ -117,4 +117,8 @@ public class Minions implements Card{
 		return name;
 	}
 
+	public String getDisplayName() {
+		return name.toUpperCase().replace('_',' ');
+	}
+
 }

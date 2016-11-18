@@ -46,7 +46,7 @@ public class SmashUp extends Activity {
 	int topMargin = 50;
 	int margin = 10;
 	int numPlayers = 2;
-	int playerWidth = 200;
+	int playerWidth = 150;
 	int listMargin = 150;
 	ArrayList<ArrayList<ArrayList<Minions>>> playedMinions;
 	ArrayList<ArrayList<ArrayList<ImageView>>> minionViews;
@@ -72,7 +72,7 @@ public class SmashUp extends Activity {
     }
 
 	public void setupBoard() {
-		cardHeight = (height - topMargin - margin) / (numPlayers + 1) - margin;
+		cardHeight = (height - topMargin - margin*2) / (numPlayers + 1) - margin;
 		cardWidth = (int) (cardHeight / 1.5);
 		playedMinions = new ArrayList<ArrayList<ArrayList<Minions>>>();
 		minionViews = new ArrayList<ArrayList<ArrayList<ImageView>>>();
@@ -94,7 +94,7 @@ public class SmashUp extends Activity {
 			Base b = Base.allBases.get(i);
 			bases.add(b);
 			TextView text = new TextView(this);
-			text.setLayoutParams(new AbsoluteLayout.LayoutParams(leftMargin,cardHeight,0,topMargin+margin+(cardHeight+margin)*i));
+			text.setLayoutParams(new AbsoluteLayout.LayoutParams(leftMargin,cardHeight,0,topMargin+(cardHeight+margin)*i));
 			text.setText(b.name+"\n"+b.breakpoint+" ("+b.vp1+","+b.vp2+","+b.vp3+")");
 			al.addView(text);
 			baseViews.add(text);
@@ -116,22 +116,41 @@ public class SmashUp extends Activity {
 			p.drawCards(5);
 			TextView text = new TextView(this);
 			text.setLayoutParams(new AbsoluteLayout.LayoutParams(playerWidth,topMargin,leftMargin+margin+(playerWidth+margin)*i,0));
-			text.setText(p.name+"\n"+p.vp+" VP (hand:"+p.hand.size()+")");
+			text.setText(p.name+" "+p.vp+"VP (hand:"+p.hand.size()+")");
 			al.addView(text);
 			playerViews.add(text);
 			players.add(p);
 		}
 		currentPlayer = random.nextInt(numPlayers);
-		playMinion(new Minions(0,Minions.Type.ZAPBOT),1);
-//		playMinion(new Minions(0,Minions.Type.ZAPBOT),1);
-//		playMinion(new Minions(0,Minions.Type.ZAPBOT),1);
-//		playMinion(new Minions(0,Minions.Type.ZAPBOT),1);
-//		playMinion(new Minions(1,Minions.Type.ZAPBOT),1);
-//		playMinion(new Minions(1,Minions.Type.ZAPBOT),1);
-//		playMinion(new Minions(1,Minions.Type.ZAPBOT),1);
-//		playMinion(new Minions(1,Minions.Type.ZAPBOT),1);
-//		playMinion(new Minions(1,Minions.Type.ZAPBOT),1);
-//		playMinion(new Minions(0,Minions.Type.ZAPBOT),0);
+		gameLoop();
+	}
+
+	public void gameLoop() {
+		if (currentPlayer==0) {
+			new AlertDialog.Builder(this).setMessage("Your turn").create().show();
+		} else {
+			Minions m = players.get(currentPlayer).ai_playMinion();
+			if (m != null) {
+				int n = players.get(currentPlayer).ai_getBase(bases);
+				playMinion(m,n);
+				new AlertDialog.Builder(this).setMessage("Player "+currentPlayer+" played "+m.getDisplayName()+" on "+bases.get(n).name)
+				.setPositiveButton("ok", new DialogInterface.OnClickListener() {
+					public void onClick(DialogInterface dialog, int which) {
+						endTurn();
+					}
+				}).create().show();
+			} else {
+				endTurn();
+			}
+		}
+	}
+
+	public void endTurn() {
+		Player p = players.get(currentPlayer);
+		p.drawCards(2);
+		playerViews.get(currentPlayer).setText(p.name+" "+p.vp+"VP (hand:"+p.hand.size()+")");
+		currentPlayer = (currentPlayer + 1) % numPlayers;
+		gameLoop();
 	}
 
 	public void playMinion(Minions m, int target) {
@@ -155,6 +174,7 @@ public class SmashUp extends Activity {
 				displayList(list);
 			}
 		});
+		displayPlayedMinions();
 	}
 
 	public int getStatusBarHeight() { 
@@ -167,16 +187,13 @@ public class SmashUp extends Activity {
 	}
 
 	public void displayPlayedMinions() {
-		int y = topMargin + margin;
+		int y = topMargin;
 		for (int i=0; i<numPlayers+1; i++) {
-			int x = leftMargin + margin;
 			for (int j=0; j<numPlayers; j++) {
-				if (playedMinions.get(i).get(j).size() != 0) {
-					for (ImageView m : minionViews.get(i).get(j)) {
-						m.setLayoutParams(new AbsoluteLayout.LayoutParams(cardWidth,cardHeight,x,y));
-						x += margin;
-					}
-					x += cardWidth;
+				int x = leftMargin + margin + (playerWidth + margin) * j;
+				for (ImageView m : minionViews.get(i).get(j)) {
+					m.setLayoutParams(new AbsoluteLayout.LayoutParams(cardWidth,cardHeight,x,y));
+					x += margin;
 				}
 			}
 			y += cardHeight + margin;
@@ -233,6 +250,7 @@ public class SmashUp extends Activity {
 		AlertDialog.Builder builder = new AlertDialog.Builder(this);
 			builder
 				.setTitle("Select number of players:")
+				.setCancelable(false)
 				.setItems(new CharSequence[] {"2","3","4"}, new DialogInterface.OnClickListener() {
 						public void onClick(DialogInterface dialog, int id) {
 							switch(id) {
@@ -260,6 +278,7 @@ public class SmashUp extends Activity {
 				options.add(d.name());
 		AlertDialog.Builder builder = new AlertDialog.Builder(this);
 		builder .setTitle("Select faction:")
+			.setCancelable(false)
 			.setItems(options.toArray(new String[0]), new DialogInterface.OnClickListener() {
 					public void onClick(DialogInterface dialog, int id) {
 						String s = options.remove(id);
@@ -269,7 +288,6 @@ public class SmashUp extends Activity {
 						} else {
 							faction2 = Player.DeckType.valueOf(s);
 							setupBoard();
-							displayPlayedMinions();
 						}
 					}
 			 });
@@ -306,6 +324,9 @@ public class SmashUp extends Activity {
 			}
 			return true;
 		case R.id.abilitymenu:
+			return true;
+		case R.id.endturnmenu:
+			endTurn();
 			return true;
         case R.id.newgamemenu:
 			Intent intent = getIntent();

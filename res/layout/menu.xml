@@ -4,6 +4,8 @@
           android:title="Hand" />
     <item android:id="@+id/abilitymenu"
           android:title="Ability" />
+    <item android:id="@+id/endturnmenu"
+          android:title="End Turn" />
     <item android:id="@+id/newgamemenu"
           android:title="New Game" />
 	<item android:id="@+id/quitmenu"
