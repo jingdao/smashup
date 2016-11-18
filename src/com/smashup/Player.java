@@ -18,6 +18,8 @@ public class Player {
 	}
 	int playerID;
 	int vp;
+	int minionsLeft;
+	int actionsLeft;
 	ArrayList<Card> hand;
 	ArrayList<Card> deck;
 	ArrayList<Card> discard;
@@ -257,5 +259,13 @@ public class Player {
 
 	public int ai_getBase(ArrayList<Base> bases) {
 		return random.nextInt(bases.size());
+	}
+
+	public void ai_discard(int num) {
+		for (int i=0;i<num;i++) {
+			if (hand.size()==0)
+				break;
+			discard.add(hand.remove(0));
+		}
 	}
 }

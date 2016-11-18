@@ -83,4 +83,7 @@ public class Actions implements Card {
 		return name;
 	}
 
+	public String getDisplayName() {
+		return name.toUpperCase().replace('_',' ');
+	}
 }
