@@ -35,6 +35,7 @@ import android.preference.PreferenceManager;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Random;
 
 public class SmashUp extends Activity {
 	int width,height;
@@ -45,7 +46,7 @@ public class SmashUp extends Activity {
 	int topMargin = 50;
 	int margin = 10;
 	int numPlayers = 2;
-	int playerWidth = 150;
+	int playerWidth = 200;
 	int listMargin = 150;
 	ArrayList<ArrayList<ArrayList<Minions>>> playedMinions;
 	ArrayList<ArrayList<ArrayList<ImageView>>> minionViews;
@@ -54,6 +55,10 @@ public class SmashUp extends Activity {
 	ArrayList<TextView> baseViews;
 	ArrayList<TextView> playerViews;
 	ArrayList<ImageView> listViews;
+
+	Random random = new Random();
+	Player.DeckType faction1,faction2;
+	int currentPlayer;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -94,8 +99,19 @@ public class SmashUp extends Activity {
 			al.addView(text);
 			baseViews.add(text);
 		}
+		ArrayList<Player.DeckType> decks = new ArrayList<Player.DeckType>(Arrays.asList(Player.DeckType.values()));
+		Collections.shuffle(decks);
 		for (int i=0;i<numPlayers;i++) {
-			Player p = new Player(i,Player.DeckType.ROBOTS,Player.DeckType.ALIENS);
+			Player p;
+			if (i==0) {
+				p = new Player(i,faction1,faction2);
+				decks.remove(faction1);
+				decks.remove(faction2);
+			} else {
+				p = new Player(i,decks.get(0),decks.get(1));
+				decks.remove(0);
+				decks.remove(0);
+			}
 			Collections.shuffle(p.deck);
 			p.drawCards(5);
 			TextView text = new TextView(this);
@@ -105,6 +121,7 @@ public class SmashUp extends Activity {
 			playerViews.add(text);
 			players.add(p);
 		}
+		currentPlayer = random.nextInt(numPlayers);
 		playMinion(new Minions(0,Minions.Type.ZAPBOT),1);
 //		playMinion(new Minions(0,Minions.Type.ZAPBOT),1);
 //		playMinion(new Minions(0,Minions.Type.ZAPBOT),1);
@@ -229,10 +246,33 @@ public class SmashUp extends Activity {
 									numPlayers=4;
 									break;
 							}
+							selectFaction(1);
+						}
+				 });
+			AlertDialog alert = builder.create();
+			alert.show();
+	}
+
+	public void selectFaction(final int n) {
+		final ArrayList<String> options = new ArrayList<String>();
+		for (Player.DeckType d : Player.DeckType.values())
+			if (n==1 || d!=faction1)
+				options.add(d.name());
+		AlertDialog.Builder builder = new AlertDialog.Builder(this);
+		builder .setTitle("Select faction:")
+			.setItems(options.toArray(new String[0]), new DialogInterface.OnClickListener() {
+					public void onClick(DialogInterface dialog, int id) {
+						String s = options.remove(id);
+						if (n==1) {
+							faction1 = Player.DeckType.valueOf(s);
+							selectFaction(2);
+						} else {
+							faction2 = Player.DeckType.valueOf(s);
 							setupBoard();
 							displayPlayedMinions();
 						}
-				 });
+					}
+			 });
 			AlertDialog alert = builder.create();
 			alert.show();
 	}
@@ -260,8 +300,10 @@ public class SmashUp extends Activity {
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
 		case R.id.handmenu:
-			toggleDisplay();
-			displayList(players.get(0).hand);
+			if (players.get(0).hand.size()>0) {
+				toggleDisplay();
+				displayList(players.get(0).hand);
+			}
 			return true;
 		case R.id.abilitymenu:
 			return true;

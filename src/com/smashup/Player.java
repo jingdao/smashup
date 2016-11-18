@@ -81,7 +81,7 @@ public class Player {
 	}
 
 	public void drawCards(int num) {
-		for (int i=0;i<num;i++) {
+		for (int i=0;i<num && deck.size()>0;i++) {
 			Card card = deck.remove(deck.size() - 1);
 			hand.add(card);
 		}
