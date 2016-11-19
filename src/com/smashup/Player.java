@@ -217,6 +217,10 @@ public class Player {
 	}
 
 	public void drawCards(int num) {
+		if (deck.size() == 0) {
+			deck.addAll(discard);
+			Collections.shuffle(deck);
+		}
 		for (int i=0;i<num && deck.size()>0;i++) {
 			Card card = deck.remove(deck.size() - 1);
 			hand.add(card);

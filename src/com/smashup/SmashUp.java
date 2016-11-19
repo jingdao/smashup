@@ -49,6 +49,7 @@ public class SmashUp extends Activity {
 	int numPlayers = 2;
 	int playerWidth = 150;
 	int listMargin = 50;
+	int textHeight = 20;
 	ArrayList<ArrayList<ArrayList<Minions>>> playedMinions;
 	ArrayList<ArrayList<ArrayList<ImageView>>> minionViews;
 	ArrayList<Base> bases;
@@ -56,10 +57,11 @@ public class SmashUp extends Activity {
 	ArrayList<TextView> baseViews;
 	ArrayList<TextView> playerViews;
 	ArrayList<ImageView> listViews;
+	ArrayList<ArrayList<TextView>> powerViews;
 
 	Random random = new Random();
 	Player.DeckType faction1,faction2;
-	int currentPlayer;
+	int currentPlayer,baseCounter;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -82,17 +84,27 @@ public class SmashUp extends Activity {
 		baseViews = new ArrayList<TextView>();
 		playerViews = new ArrayList<TextView>();
 		listViews = new ArrayList<ImageView>();
+		powerViews = new ArrayList<ArrayList<TextView>>();
 		Collections.shuffle(Base.allBases);
 		for (int i=0;i<numPlayers+1;i++) {
 			ArrayList<ArrayList<Minions>> pm = new ArrayList<ArrayList<Minions>>();
 			ArrayList<ArrayList<ImageView>> mv = new ArrayList<ArrayList<ImageView>>();
+			ArrayList<TextView> pv = new ArrayList<TextView>();
 			for (int j=0;j<numPlayers;j++) {
 				pm.add(new ArrayList<Minions>());
 				mv.add(new ArrayList<ImageView>());
+				TextView tv = new TextView(this);
+				tv.setLayoutParams(new AbsoluteLayout.LayoutParams((int)(textHeight*1.5),textHeight,leftMargin+margin+(playerWidth+margin)*j,topMargin+(cardHeight+margin)*(i+1)-textHeight-margin));
+				tv.setBackgroundResource(android.R.color.black);
+				tv.setVisibility(View.GONE);
+				al.addView(tv);
+				pv.add(tv);
 			}
 			playedMinions.add(pm);
 			minionViews.add(mv);
-			Base b = Base.allBases.get(i);
+			powerViews.add(pv);
+			Base b = Base.allBases.get(baseCounter);
+			baseCounter++;
 			bases.add(b);
 			TextView text = new TextView(this);
 			text.setLayoutParams(new AbsoluteLayout.LayoutParams(leftMargin,cardHeight,0,topMargin+(cardHeight+margin)*i));
@@ -153,6 +165,10 @@ public class SmashUp extends Activity {
 	}
 
 	public void endTurn() {
+		if (checkBreakPoint())
+			return;
+		if (checkWinner())
+			return;
 		final Player p = players.get(currentPlayer);
 		p.drawCards(2);
 		if (p.hand.size() > 10) {
@@ -176,18 +192,84 @@ public class SmashUp extends Activity {
 		}
 	}
 
+	public boolean checkBreakPoint() {
+		for (int i=0;i<numPlayers+1;i++) {
+			int[] score = new int[numPlayers];
+			int[] vp = new int[numPlayers];
+			int sum = 0;
+			for (int j=0;j<numPlayers;j++) {
+				score[j] = getMinionPower(i,j);
+				if (score[j] > 0)
+					sum += score[j];
+			}
+			if (sum >= bases.get(i).breakpoint) {
+				String s = bases.get(i).name+" has scored!\n";
+				for (int j=0;j<numPlayers;j++) {
+					Player p = players.get(j);
+					p.discard.addAll(playedMinions.get(i).get(j));
+					playedMinions.get(i).get(j).clear();
+					for (ImageView iv : minionViews.get(i).get(j))
+						al.removeView(iv);
+					minionViews.get(i).get(j).clear();
+					if (score[j] >= 0) {
+						int place=0;
+						for (int k=0;k<numPlayers;k++)
+							if (k!=j && score[k] > score[j])
+								place++;
+						if (place==0) vp[j] = bases.get(i).vp1;
+						else if (place==1) vp[j] = bases.get(i).vp2;
+						else if (place==2) vp[j] = bases.get(i).vp3;
+					}
+					s += "Player "+j+": "+vp[j]+"vp\n";
+					p.vp += vp[j];
+					playerViews.get(j).setText(p.name+" "+p.vp+"VP (hand:"+p.hand.size()+")");
+				}
+				Base b = Base.allBases.get(baseCounter);
+				baseCounter++;
+				bases.set(i,b);
+				baseViews.get(i).setText(b.name+"\n"+b.breakpoint+" ("+b.vp1+","+b.vp2+","+b.vp3+")");
+				Runnable r = new Runnable() {
+					public void run() {
+						endTurn();
+					}
+				};
+				displayPlayedMinions();
+				alert(s,r);
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public boolean checkWinner() {
+		for (int i=0;i<numPlayers;i++) {
+			if (players.get(i).vp >= 15) {
+				alert("Player "+i+"is the winner!", new Runnable() {
+					public void run() {
+						Intent intent = getIntent();
+						finish();
+						startActivity(intent);
+					}
+				});
+				return true;
+			}
+		}
+		return false;
+	}
+
 	public void playMinion(Minions m, int target) {
 		final int i = target;
 		final int j = m.playerID;
 		if (playedMinions.get(i).get(j).size() > 0)
 			minionViews.get(i).get(j).get(playedMinions.get(i).get(j).size()-1).setClickable(false);
 		playedMinions.get(target).get(m.playerID).add(m);
+
 		ImageView iv = new ImageView(this);
 		iv.setScaleType(ImageView.ScaleType.FIT_XY);
 		al.addView(iv);
 		minionViews.get(target).get(m.playerID).add(iv);
 		Resources res = getResources();
-		int vid = res.getIdentifier(m.name, "drawable", getApplicationContext().getPackageName());
+		 int vid = res.getIdentifier(m.name, "drawable", getApplicationContext().getPackageName());
 		iv.setImageResource(vid);
 		iv.setOnClickListener(new OnClickListener(){
 			public void onClick(View arg0) {
@@ -209,6 +291,15 @@ public class SmashUp extends Activity {
 		  return result;
 	}
 
+	public int getMinionPower(int base, int playerID) {
+		if (playedMinions.get(base).get(playerID).size()==0)
+			return -1;
+		int p = 0;
+		for (Minions m : playedMinions.get(base).get(playerID))
+			p += m.power + m.powerCounters;
+		return p;
+	}
+
 	public void displayPlayedMinions() {
 		int y = topMargin;
 		for (int i=0; i<numPlayers+1; i++) {
@@ -218,6 +309,14 @@ public class SmashUp extends Activity {
 					m.setLayoutParams(new AbsoluteLayout.LayoutParams(cardWidth,cardHeight,x,y));
 					x += margin;
 				}
+				if (minionViews.get(i).get(j).size() > 0) {
+					int power = getMinionPower(i,j);
+					TextView tv = powerViews.get(i).get(j);
+					tv.setText(power+"");
+					tv.setVisibility(View.VISIBLE);
+					tv.bringToFront();
+				} else
+					powerViews.get(i).get(j).setVisibility(View.GONE);
 			}
 			y += cardHeight + margin;
 		}
@@ -229,6 +328,7 @@ public class SmashUp extends Activity {
 				for (int j=0;j<numPlayers;j++) {
 					for (ImageView m : minionViews.get(i).get(j))
 						m.setVisibility(View.GONE);
+					powerViews.get(i).get(j).setVisibility(View.GONE);
 				}
 			}
 			for (TextView t : baseViews)
@@ -243,6 +343,8 @@ public class SmashUp extends Activity {
 				for (int j=0;j<numPlayers;j++) {
 					for (ImageView m : minionViews.get(i).get(j))
 						m.setVisibility(View.VISIBLE);
+					if (minionViews.get(i).get(j).size() > 0)
+						powerViews.get(i).get(j).setVisibility(View.VISIBLE);
 				}
 			}
 			for (TextView t : baseViews)
