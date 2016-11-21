@@ -1,4 +1,6 @@
 package com.smashup;
+import java.util.ArrayList;
+import android.widget.ImageView;
 
 public class Minions implements Card{
 
@@ -119,6 +121,73 @@ public class Minions implements Card{
 
 	public String getDisplayName() {
 		return name.toUpperCase().replace('_',' ');
+	}
+
+	public void onPlay(final SmashUp ui, Player player, int target) {
+		ArrayList<Minions> options;
+		switch (type) {
+			case SUPREME_OVERLORD:
+				options = new ArrayList<Minions>();
+				for (ArrayList<ArrayList<Minions>> a : ui.playedMinions)
+					for (ArrayList<Minions> b : a)
+						for (Minions m : b)
+							if (m!=this)
+								options.add(m);
+				if (options.size() == 0)
+					break;
+				options.add(null);
+				returnToHand(ui,options);
+				return;
+			case COLLECTOR:
+				options = new ArrayList<Minions>();
+				for (ArrayList<Minions> b : ui.playedMinions.get(target))
+					for (Minions m : b)
+						if (m!=this && m.power + m.powerCounters <= 3)
+							options.add(m);
+				if (options.size() == 0)
+					break;
+				options.add(null);
+				returnToHand(ui,options);
+				return;
+		}
+		if (ui.currentPlayer!=0)
+			ui.endTurn();
+	}
+
+	public void returnToHand(final SmashUp ui, ArrayList<Minions> options) {
+		Runnable r = new Runnable() {
+			public void run() {
+				for (int i=0;i<ui.numPlayers+1;i++) {
+					for (int j=0;j<ui.numPlayers;j++) {
+						for (int k=0;k<ui.playedMinions.get(i).get(j).size();k++) {
+							if (ui.playedMinions.get(i).get(j).get(k) == ui.targetMinion) {
+								Minions m = ui.playedMinions.get(i).get(j).remove(k);
+								ui.players.get(m.playerID).hand.add(m);
+								ImageView iv = ui.minionViews.get(i).get(j).remove(k);
+								ui.al.removeView(iv);
+								ui.displayPlayedMinions();
+								ui.alert(m.getDisplayName()+" is returned to hand",new Runnable() {
+									public void run() {
+										if (ui.currentPlayer!=0)
+											ui.endTurn();
+									}
+								});
+								return;
+							}
+						}
+					}
+				}
+				if (ui.currentPlayer!=0)
+					ui.endTurn();
+			}
+		};
+		if (playerID==0) {
+			ui.selectMinion(this,options,r);
+		} else {
+			int choice = ui.random.nextInt(options.size());
+			ui.targetMinion = options.get(choice);
+			r.run();
+		}
 	}
 
 }
