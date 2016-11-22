@@ -61,7 +61,7 @@ public class SmashUp extends Activity {
 
 	Random random = new Random();
 	Player.DeckType faction1,faction2;
-	int currentPlayer,baseCounter;
+	int currentPlayer,baseCounter, targetOption, targetBase;
 	Minions targetMinion;
 
     @Override
@@ -158,6 +158,8 @@ public class SmashUp extends Activity {
 		Player p = players.get(currentPlayer);
 		p.actionsLeft = 1;
 		p.minionsLeft = 1;
+		p.minionsPlayed = 0;
+		displayPlayedMinions();
 	}
 
 	public void endTurn() {
@@ -166,7 +168,6 @@ public class SmashUp extends Activity {
 		if (checkWinner())
 			return;
 		final Player p = players.get(currentPlayer);
-		p.drawCards(2);
 		if (p.hand.size() > 10) {
 			Runnable r = new Runnable() {
 				public void run() {
@@ -182,6 +183,7 @@ public class SmashUp extends Activity {
 				alert("Player "+currentPlayer+" discards down to 10 cards",r);
 			}
 		} else {
+			p.drawCards(2);
 			playerViews.get(currentPlayer).setText(p.name+" "+p.vp+"VP (hand:"+p.hand.size()+")");
 			currentPlayer = (currentPlayer + 1) % numPlayers;
 			gameLoop();
@@ -258,6 +260,7 @@ public class SmashUp extends Activity {
 		final int j = m.playerID;
 		final SmashUp ui = this;
 		playedMinions.get(target).get(m.playerID).add(m);
+		players.get(m.playerID).minionsPlayed ++;
 
 		ImageView iv = new ImageView(this);
 		iv.setScaleType(ImageView.ScaleType.FIT_XY);
@@ -288,7 +291,7 @@ public class SmashUp extends Activity {
 			return -1;
 		int p = 0;
 		for (Minions m : playedMinions.get(base).get(playerID))
-			p += m.power + m.powerCounters;
+			p += m.getPower(this,base);
 		return p;
 	}
 
@@ -407,10 +410,21 @@ public class SmashUp extends Activity {
 				x2 += w + margin;
 			}
 			final Card selectedCard = m;
+			final SmashUp ui = this;
 			iv.setOnClickListener(new OnClickListener(){
 				public void onClick(View arg0) {
 					if (selectedCard instanceof Minions && players.get(0).minionsLeft > 0) {
-						selectBase((Minions)selectedCard);
+						ui.targetMinion = (Minions)selectedCard;
+						Runnable r = new Runnable() {
+							public void run() {
+								Player p = ui.players.get(0);
+								p.minionsLeft--;
+								p.hand.remove(ui.targetMinion);
+								ui.toggleDisplay();
+								ui.playMinion(ui.targetMinion,ui.targetBase);
+							}
+						};
+						selectBase((Minions)selectedCard,false,r);
 					}
 				}
 			});
@@ -466,19 +480,19 @@ public class SmashUp extends Activity {
 			alert.show();
 	}
 
-	public void selectBase(final Minions m) {
+	public void selectBase(final Minions m,boolean allowNone,final Runnable r) {
 		final ArrayList<String> options = new ArrayList<String>();
 		for (Base b : bases)
 			options.add(b.name);
+		if (allowNone)
+			options.add("NONE");
+		final SmashUp ui = this;
 		AlertDialog.Builder builder = new AlertDialog.Builder(this);
 		builder.setTitle("Select base to play "+m.getDisplayName()+":")
 		.setItems(options.toArray(new String[0]), new DialogInterface.OnClickListener() {
 				public void onClick(DialogInterface dialog, int id) {
-					Player p = players.get(0);
-					p.minionsLeft--;
-					p.hand.remove(m);
-					toggleDisplay();
-					playMinion(m,id);
+					ui.targetBase = id;
+					r.run();
 				}
 		 });
 		AlertDialog alert = builder.create();
@@ -522,6 +536,21 @@ public class SmashUp extends Activity {
 		.setItems(options.toArray(new String[0]), new DialogInterface.OnClickListener() {
 				public void onClick(DialogInterface dialog, int id) {
 					ui.targetMinion = list.get(id);
+					r.run();
+				}
+		 });
+		AlertDialog alert = builder.create();
+		alert.show();
+	}
+
+	public void selectOption(String instructions, ArrayList<String> list, final Runnable r) {
+		final SmashUp ui = this;
+		AlertDialog.Builder builder = new AlertDialog.Builder(this);
+		builder.setTitle(instructions)
+		.setCancelable(false)
+		.setItems(list.toArray(new String[0]), new DialogInterface.OnClickListener() {
+				public void onClick(DialogInterface dialog, int id) {
+					ui.targetOption = id;
 					r.run();
 				}
 		 });

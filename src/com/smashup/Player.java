@@ -20,6 +20,7 @@ public class Player {
 	int vp;
 	int minionsLeft;
 	int actionsLeft;
+	int minionsPlayed=0;
 	ArrayList<Card> hand;
 	ArrayList<Card> deck;
 	ArrayList<Card> discard;
@@ -222,7 +223,7 @@ public class Player {
 			Collections.shuffle(deck);
 		}
 		for (int i=0;i<num && deck.size()>0;i++) {
-			Card card = deck.remove(deck.size() - 1);
+			Card card = deck.remove(0);
 			hand.add(card);
 		}
 		sortHand();
@@ -272,4 +273,5 @@ public class Player {
 			discard.add(hand.remove(0));
 		}
 	}
+
 }
